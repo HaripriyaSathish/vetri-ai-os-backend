@@ -495,9 +495,6 @@ class BatchZoneReportView(APIView):
             return Response({"detail": "start and end dates are required."}, status=400)
 
         batch = Batch.objects.get(id=batch_id)
-
-        # Reuse the exact same eligibility calculation as Mock Interviews,
-        # so Zone and Eligibility always agree with each other.
         eligibility_data = get_batch_eligibility(batch_id)
 
         daily_tasks = Assignment.objects.filter(batch_id=batch_id, category='task')
@@ -505,6 +502,12 @@ class BatchZoneReportView(APIView):
 
         mini_projects = Assignment.objects.filter(batch_id=batch_id, category='mini_project')
         total_mini_projects = mini_projects.count()
+
+        main_projects = Assignment.objects.filter(batch_id=batch_id, category='main_project')
+        total_main_projects = main_projects.count()
+
+        seminars = Assignment.objects.filter(batch_id=batch_id, category='seminar')
+        total_seminars = seminars.count()
 
         schedule = DailySchedule.objects.filter(batch_id=batch_id).first()
         timing = f"{schedule.start_time.strftime('%I:%M %p')} - {schedule.end_time.strftime('%I:%M %p')}" if schedule else "—"
@@ -530,7 +533,18 @@ class BatchZoneReportView(APIView):
             ).count()
             mini_project_pct = round((completed_mini_projects / total_mini_projects) * 100) if total_mini_projects > 0 else 0
 
-            # Same 85% threshold, same all-time attendance % used by Mock Interview eligibility
+            completed_main_projects = AssignmentSubmission.objects.filter(
+                student_id=sid, assignment__batch_id=batch_id, assignment__category='main_project',
+                submitted_at__date__gte=start, submitted_at__date__lte=end,
+            ).count()
+            main_project_pct = round((completed_main_projects / total_main_projects) * 100) if total_main_projects > 0 else 0
+
+            completed_seminars = AssignmentSubmission.objects.filter(
+                student_id=sid, assignment__batch_id=batch_id, assignment__category='seminar',
+                submitted_at__date__gte=start, submitted_at__date__lte=end,
+            ).count()
+            seminar_pct = round((completed_seminars / total_seminars) * 100) if total_seminars > 0 else 0
+
             zone = 'Safe Zone' if e['eligible'] else 'Danger Zone'
 
             trainee_full_name = f"{e['first_name']} {e['last_name']}".strip() or e['username']
@@ -550,6 +564,12 @@ class BatchZoneReportView(APIView):
                 'assigned_mini_projects': total_mini_projects,
                 'completed_mini_projects': completed_mini_projects,
                 'mini_project_percentage': mini_project_pct,
+                'assigned_main_projects': total_main_projects,
+                'completed_main_projects': completed_main_projects,
+                'main_project_percentage': main_project_pct,
+                'assigned_seminars': total_seminars,
+                'completed_seminars': completed_seminars,
+                'seminar_percentage': seminar_pct,
             })
             sno += 1
 
@@ -567,6 +587,12 @@ class BatchFullZoneReportView(APIView):
 
         mini_projects = Assignment.objects.filter(batch_id=batch_id, category='mini_project')
         total_mini_projects = mini_projects.count()
+
+        main_projects = Assignment.objects.filter(batch_id=batch_id, category='main_project')
+        total_main_projects = main_projects.count()
+
+        seminars = Assignment.objects.filter(batch_id=batch_id, category='seminar')
+        total_seminars = seminars.count()
 
         schedule = DailySchedule.objects.filter(batch_id=batch_id).first()
         timing = f"{schedule.start_time.strftime('%I:%M %p')} - {schedule.end_time.strftime('%I:%M %p')}" if schedule else "—"
@@ -590,6 +616,16 @@ class BatchFullZoneReportView(APIView):
             ).count()
             mini_project_pct = round((completed_mini_projects / total_mini_projects) * 100) if total_mini_projects > 0 else 0
 
+            completed_main_projects = AssignmentSubmission.objects.filter(
+                student_id=sid, assignment__batch_id=batch_id, assignment__category='main_project',
+            ).count()
+            main_project_pct = round((completed_main_projects / total_main_projects) * 100) if total_main_projects > 0 else 0
+
+            completed_seminars = AssignmentSubmission.objects.filter(
+                student_id=sid, assignment__batch_id=batch_id, assignment__category='seminar',
+            ).count()
+            seminar_pct = round((completed_seminars / total_seminars) * 100) if total_seminars > 0 else 0
+
             zone = 'Safe Zone' if e['eligible'] else 'Danger Zone'
 
             trainee_full_name = f"{e['first_name']} {e['last_name']}".strip() or e['username']
@@ -609,10 +645,16 @@ class BatchFullZoneReportView(APIView):
                 'assigned_mini_projects': total_mini_projects,
                 'completed_mini_projects': completed_mini_projects,
                 'mini_project_percentage': mini_project_pct,
+                'assigned_main_projects': total_main_projects,
+                'completed_main_projects': completed_main_projects,
+                'main_project_percentage': main_project_pct,
+                'assigned_seminars': total_seminars,
+                'completed_seminars': completed_seminars,
+                'seminar_percentage': seminar_pct,
             })
             sno += 1
 
-        return Response(rows)   
+        return Response(rows)
 class StudentProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1393,14 +1435,13 @@ def get_month_range():
 
 
 def compute_zone_rows(batch_id, start, end):
-    """Same computation your BatchZoneReportView already does — factored
-    out so both the trainer's email view and the student's download view
-    can reuse it without duplicating logic."""
     batch = Batch.objects.get(id=batch_id)
     eligibility_data = get_batch_eligibility(batch_id)
 
     total_daily_tasks = Assignment.objects.filter(batch_id=batch_id, category='task').count()
     total_mini_projects = Assignment.objects.filter(batch_id=batch_id, category='mini_project').count()
+    total_main_projects = Assignment.objects.filter(batch_id=batch_id, category='main_project').count()
+    total_seminars = Assignment.objects.filter(batch_id=batch_id, category='seminar').count()
 
     schedule = DailySchedule.objects.filter(batch_id=batch_id).first()
     timing = f"{schedule.start_time.strftime('%I:%M %p')} - {schedule.end_time.strftime('%I:%M %p')}" if schedule else "—"
@@ -1425,6 +1466,18 @@ def compute_zone_rows(batch_id, start, end):
         ).count()
         mini_project_pct = round((completed_mini_projects / total_mini_projects) * 100) if total_mini_projects > 0 else 0
 
+        completed_main_projects = AssignmentSubmission.objects.filter(
+            student_id=sid, assignment__batch_id=batch_id, assignment__category='main_project',
+            submitted_at__date__gte=start, submitted_at__date__lte=end,
+        ).count()
+        main_project_pct = round((completed_main_projects / total_main_projects) * 100) if total_main_projects > 0 else 0
+
+        completed_seminars = AssignmentSubmission.objects.filter(
+            student_id=sid, assignment__batch_id=batch_id, assignment__category='seminar',
+            submitted_at__date__gte=start, submitted_at__date__lte=end,
+        ).count()
+        seminar_pct = round((completed_seminars / total_seminars) * 100) if total_seminars > 0 else 0
+
         zone = 'Safe Zone' if e['eligible'] else 'Danger Zone'
         trainee_full_name = f"{e['first_name']} {e['last_name']}".strip() or e['username']
         rows.append({
@@ -1436,6 +1489,10 @@ def compute_zone_rows(batch_id, start, end):
             'daily_task_percentage': daily_task_pct,
             'assigned_mini_projects': total_mini_projects, 'completed_mini_projects': completed_mini_projects,
             'mini_project_percentage': mini_project_pct,
+            'assigned_main_projects': total_main_projects, 'completed_main_projects': completed_main_projects,
+            'main_project_percentage': main_project_pct,
+            'assigned_seminars': total_seminars, 'completed_seminars': completed_seminars,
+            'seminar_percentage': seminar_pct,
         })
         sno += 1
     return rows

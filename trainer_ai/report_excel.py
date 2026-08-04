@@ -8,10 +8,12 @@ TABLE_HEADERS = [
     'Total No. of Class Days', 'Total Present Days', 'Total Attendance %',
     'Assigned Daily Tasks', 'Total Daily Tasks Completed', 'Daily Tasks Completed %',
     'Assigned Mini Projects', 'Total Mini Project Completed', 'Mini Project Completed %',
+    'Assigned Main Projects', 'Total Main Project Completed', 'Main Project Completed %',
+    'Assigned Seminars', 'Total Seminar Completed', 'Seminar Completed %',
 ]
 
-COL_WIDTHS = [6, 14, 18, 12, 14, 18, 14, 14, 14, 16, 18, 16, 16, 18, 16]
-ZONE_HIGHLIGHT_COLS = [4, 9, 12, 15]  # 1-indexed: Zone, Attendance %, Daily Tasks %, Mini Project %
+COL_WIDTHS = [6, 14, 18, 12, 14, 18, 14, 14, 14, 16, 18, 16, 16, 18, 16, 16, 18, 16, 14, 16, 14]
+ZONE_HIGHLIGHT_COLS = [4, 9, 12, 15, 18, 21]  # 1-indexed: Zone, Attendance %, Daily Tasks %, Mini Project %, Main Project %, Seminar %
 
 
 def build_zone_report_excel(rows, title):
@@ -45,6 +47,8 @@ def build_zone_report_excel(rows, title):
             r['total_class_days'], r['total_present_days'], f"{r['attendance_percentage']}%",
             r['assigned_daily_tasks'], r['completed_daily_tasks'], f"{r['daily_task_percentage']}%",
             r['assigned_mini_projects'], r['completed_mini_projects'], f"{r['mini_project_percentage']}%",
+            r['assigned_main_projects'], r['completed_main_projects'], f"{r['main_project_percentage']}%",
+            r['assigned_seminars'], r['completed_seminars'], f"{r['seminar_percentage']}%",
         ]
         for col_idx, val in enumerate(values, start=1):
             cell = ws.cell(row=row_idx, column=col_idx, value=val)
