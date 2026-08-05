@@ -1069,7 +1069,8 @@ class SendWelcomeEmailView(APIView):
         student_ids = request.data.get('student_ids', [])
         subject = (request.data.get('subject') or '').strip()
         body_template = request.data.get('body', '')
-        cc_raw = request.data.get('cc', '')  # comma-separated string from the frontend
+        cc_raw = request.data.get('cc', '')
+        batch_id = request.data.get('batch_id')
 
         if not student_ids:
             return Response({"detail": "student_ids is required."}, status=400)
@@ -1101,7 +1102,11 @@ class SendWelcomeEmailView(APIView):
             else:
                 skipped.append({"id": sid, "reason": f"Email send failed for {full_name}."})
 
-        return Response({"sent": sent, "sent_count": len(sent), "skipped": skipped})    
+        if batch_id and len(sent) > 0:
+            from trainer_ai.models import Batch
+            Batch.objects.filter(id=batch_id).update(welcome_email_sent=True)
+
+        return Response({"sent": sent, "sent_count": len(sent), "skipped": skipped})  
 
 
 class NotifyTrainerView(APIView):
@@ -1115,6 +1120,7 @@ class NotifyTrainerView(APIView):
         subject = (request.data.get('subject') or '').strip()
         body = request.data.get('body', '')
         cc_raw = request.data.get('cc', '')
+        batch_id = request.data.get('batch_id')
 
         if not to or not subject or not body:
             return Response({"detail": "to, subject, and body are required."}, status=400)
@@ -1122,8 +1128,10 @@ class NotifyTrainerView(APIView):
         cc_list = [c.strip() for c in cc_raw.split(',') if c.strip()] if cc_raw else None
 
         if send_email(to=to, subject=subject, html_body=body, cc=cc_list):
+            if batch_id:
+                Batch.objects.filter(id=batch_id).update(trainer_notified=True)
             return Response({"detail": "Trainer notified."})
-        return Response({"detail": "Failed to send email."}, status=500)    
+        return Response({"detail": "Failed to send email."}, status=500)  
 
 
 # ---------------------------------------------------------------------------

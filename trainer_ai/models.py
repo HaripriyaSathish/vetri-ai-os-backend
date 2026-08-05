@@ -21,6 +21,9 @@ class Batch(models.Model):
     course_name = models.CharField(max_length=100, blank=True, null=True, help_text="e.g. AI FULLSTACK")
     created_at = models.DateTimeField(auto_now_add=True)
     class_start_time = models.TimeField(null=True, blank=True, help_text="Daily class start time")
+    class_end_time = models.TimeField(null=True, blank=True)
+    welcome_email_sent = models.BooleanField(default=False)
+    trainer_notified = models.BooleanField(default=False)
     def __str__(self):
         return self.name
 

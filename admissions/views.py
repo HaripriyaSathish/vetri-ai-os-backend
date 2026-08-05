@@ -256,6 +256,7 @@ class GroupIntoBatchView(APIView):
             training_mode=data.get('training_mode', 'Online'),
             programming_language=data.get('programming_language', ''),
             class_start_time=data.get('class_start_time'),
+            class_end_time=data.get('class_end_time'),
             max_students=data.get('max_students', 45),
         )
 

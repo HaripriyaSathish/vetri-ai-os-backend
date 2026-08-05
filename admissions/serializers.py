@@ -109,7 +109,8 @@ class GroupIntoBatchSerializer(serializers.Serializer):
     start_date = serializers.DateField()
     end_date = serializers.DateField(required=False, allow_null=True)
     class_start_time = serializers.TimeField(required=False, allow_null=True)
-    max_students = serializers.IntegerField(default=45)    
+    class_end_time = serializers.TimeField(required=False, allow_null=True)
+    max_students = serializers.IntegerField(default=45)  
 
 
 class WelcomeKitSerializer(serializers.ModelSerializer):

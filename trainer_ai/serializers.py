@@ -13,13 +13,18 @@ class BatchSerializer(serializers.ModelSerializer):
     trainer_username = serializers.CharField(source='trainer.username', read_only=True)
     trainer_first_name = serializers.CharField(source='trainer.first_name', read_only=True)
     trainer_last_name = serializers.CharField(source='trainer.last_name', read_only=True)
+    trainer_email = serializers.SerializerMethodField()
+
+    def get_trainer_email(self, obj):
+        return obj.trainer.official_email or obj.trainer.email or ''
 
     class Meta:
         model = Batch
         fields = [
             'id', 'name', 'trainer', 'trainer_username', 'trainer_first_name', 'trainer_last_name', 'start_date', 'end_date', 'status',
             'planned_topics', 'topics_covered', 'pending_topics', 'students_enrolled',
-            'max_students', 'class_start_time', 'created_at',
+            'max_students', 'class_start_time', 'class_end_time', 'created_at', 'trainer_email', 'welcome_email_sent',
+            'trainer_notified',
         ]
         read_only_fields = ['trainer']
 
