@@ -114,7 +114,8 @@ class ResetPasswordSerializer(serializers.Serializer):
 class CreateTrainerSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField()
-    email = serializers.EmailField()
+    personal_email = serializers.EmailField()
+    official_email = serializers.EmailField(required=False, allow_blank=True)
     first_name = serializers.CharField(required=False, allow_blank=True)
     last_name = serializers.CharField(required=False, allow_blank=True)
     phone = serializers.CharField(required=False, allow_blank=True)

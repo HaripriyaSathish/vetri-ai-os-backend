@@ -255,17 +255,20 @@ class CreateTrainerView(APIView):
         trainer = User.objects.create_user(
             username=data['username'],
             password=data['password'],
-            email=data['email'],
+            email=data.get('official_email') or data['personal_email'],
             role='trainer',
             first_name=data.get('first_name', ''),
             last_name=data.get('last_name', ''),
             phone=data.get('phone', ''),
+            personal_email=data['personal_email'],
+            official_email=data.get('official_email', ''),
         )
 
         return Response({
             "detail": "Trainer account created.",
             "username": trainer.username,
-            "email": trainer.email,
+            "personal_email": trainer.personal_email,
+            "official_email": trainer.official_email,
         }, status=201)
 
 class TrainerDirectoryView(APIView):
