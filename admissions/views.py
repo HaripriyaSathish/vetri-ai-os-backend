@@ -193,7 +193,8 @@ class CreateAccountView(APIView):
         )
 
         enquiry.account_created = student
-        enquiry.save(update_fields=['account_created'])
+        enquiry.created_password = data['password']
+        enquiry.save(update_fields=['account_created', 'created_password'])
 
         return Response({
             "detail": "Account created successfully.",

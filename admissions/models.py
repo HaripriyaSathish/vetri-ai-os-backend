@@ -48,6 +48,10 @@ class Enquiry(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='enquiry_source'
     )
     address = models.TextField(blank=True, null=True, help_text="Shipping address for welcome kit")
+    account_created = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='enquiry_source'
+    )
+    created_password = models.CharField(max_length=100, blank=True, null=True)
     class Meta:
         ordering = ['-created_at']
 

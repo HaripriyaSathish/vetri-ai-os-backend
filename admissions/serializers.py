@@ -17,6 +17,9 @@ class EnquirySerializer(serializers.ModelSerializer):
     age = serializers.ReadOnlyField()
     eligible = serializers.ReadOnlyField()
     account_created = serializers.BooleanField(source='account_created_id', read_only=True)
+    account_created_username = serializers.CharField(source='account_created.username', read_only=True, default=None)
+    account_created_email = serializers.CharField(source='account_created.official_email', read_only=True, default=None)
+    created_password = serializers.CharField(read_only=True, default=None)
 
     class Meta:
         model = Enquiry
@@ -24,6 +27,7 @@ class EnquirySerializer(serializers.ModelSerializer):
             'id', 'name', 'date_of_birth', 'whatsapp_number', 'personal_email', 'address',
             'course', 'course_name', 'course_max_age', 'education_summary', 'source',
             'status', 'notes', 'created_at', 'age', 'eligible', 'account_created',
+            'account_created_username', 'account_created_email', 'created_password',
         ]
 class EnquiryCreateSerializer(serializers.ModelSerializer):
     class Meta:
