@@ -140,6 +140,8 @@ class AssignmentSubmission(models.Model):
     cc_email = models.CharField(max_length=300, blank=True, null=True, help_text="Comma-separated CC addresses used at submission time")
     attachment = CloudinaryField('attachment', resource_type='auto', blank=True, null=True)  # kept for old records
     submitted_at = models.DateTimeField()
+    verified = models.BooleanField(default=False)
+    verified_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         unique_together = ['assignment', 'student']
@@ -262,3 +264,14 @@ class AbsenceNotification(models.Model):
 
     def __str__(self):
         return f"{self.student.username} notified for absence on {self.date}"    
+
+class Holiday(models.Model):
+    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='holidays')
+    date = models.DateField()
+    reason = models.CharField(max_length=200, blank=True, default='Holiday')
+
+    class Meta:
+        unique_together = ('batch', 'date')
+
+    def __str__(self):
+        return f"{self.batch.name} — {self.date} ({self.reason})"    

@@ -3,6 +3,7 @@ from .models import (
     Batch, LessonPlan, DailySchedule, Attendance, Assignment,
     MockInterviewQuestion, AssignmentSubmission, Report, MockInterviewSession, Message,
 )
+from .models import Holiday
 
 
 class BatchSerializer(serializers.ModelSerializer):
@@ -88,7 +89,7 @@ class AssignmentSubmissionSerializer(serializers.ModelSerializer):
         model = AssignmentSubmission
         fields = [
             'id', 'assignment', 'assignment_title', 'due_date', 'student', 'student_username',
-            'student_first_name', 'student_last_name', 'score', 'remarks', 'submitted_at', 'on_time',
+            'student_first_name', 'student_last_name', 'score', 'remarks', 'submitted_at', 'on_time', 'verified',
         ]
 
     def get_on_time(self, obj):
@@ -125,3 +126,8 @@ class MessageSerializer(serializers.ModelSerializer):
             'content', 'is_read', 'created_at', 'category', 'leave_from_date', 'leave_to_date',
         ]
         read_only_fields = ['sender']   
+
+class HolidaySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Holiday
+        fields = ['id', 'batch', 'date', 'reason']        

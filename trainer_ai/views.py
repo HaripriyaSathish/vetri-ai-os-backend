@@ -25,6 +25,8 @@ from .models import AbsenceNotification
 from datetime import date, timedelta
 from .report_excel import build_zone_report_excel
 from rest_framework.exceptions import PermissionDenied
+from .models import Holiday
+from .serializers import HolidaySerializer
 
 User = get_user_model()
 
@@ -105,7 +107,7 @@ def get_batch_eligibility(batch_id):
         present_days = att_records.filter(status='present').count()
         attendance_pct = round((present_days / total_days) * 100, 1) if total_days > 0 else 0
 
-        submissions = AssignmentSubmission.objects.filter(student_id=sid, assignment__batch_id=batch_id)
+        submissions = AssignmentSubmission.objects.filter(student_id=sid, assignment__batch_id=batch_id, verified=True)
         on_time_count = sum(1 for s in submissions if s.submitted_at.date() <= s.assignment.due_date)
         all_on_time = (
             total_assignments > 0
@@ -147,6 +149,10 @@ class BatchTrainingLogView(APIView):
         if not start or not end:
             return Response({"detail": "start and end dates are required."}, status=400)
 
+        from datetime import datetime as dt
+        start_date = dt.strptime(start, '%Y-%m-%d').date()
+        end_date = dt.strptime(end, '%Y-%m-%d').date()
+
         batch = Batch.objects.get(id=batch_id)
         student_ids = (
             Attendance.objects.filter(batch_id=batch_id)
@@ -156,25 +162,56 @@ class BatchTrainingLogView(APIView):
         )
         students = [User.objects.get(id=sid) for sid in student_ids]
 
-        lesson_plans = LessonPlan.objects.filter(batch_id=batch_id, date__gte=start, date__lte=end).order_by('date')
-        schedules = DailySchedule.objects.filter(batch_id=batch_id, date__gte=start, date__lte=end)
+        holidays = {h.date: h.reason for h in Holiday.objects.filter(batch_id=batch_id, date__gte=start_date, date__lte=end_date)}
+        schedules = DailySchedule.objects.filter(batch_id=batch_id, date__gte=start_date, date__lte=end_date)
+        lesson_plans = {p.date: p.topic for p in LessonPlan.objects.filter(batch_id=batch_id, date__gte=start_date, date__lte=end_date)}
 
         rows = []
         sno = 1
-        for plan in lesson_plans:
-            schedule = schedules.filter(date=plan.date).first()
-            timing = f"{schedule.start_time.strftime('%I:%M %p')} - {schedule.end_time.strftime('%I:%M %p')}" if schedule else "—"
+        current = start_date
+        while current <= end_date:
+            # Sunday is always off — never appears in the report at all
+            if current.weekday() == 6:
+                current += timedelta(days=1)
+                continue
 
+            # Holiday — one explicit row noting it, no per-student rows
+            if current in holidays:
+                rows.append({
+                    'sno': sno,
+                    'date': str(current),
+                    'trainer_name': display_name(batch.trainer),
+                    'trainee_name': '—',
+                    'status': f"Holiday — {holidays[current]}",
+                    'training_mode': batch.training_mode,
+                    'course_name': batch.course_name or batch.name,
+                    'timings': '—',
+                    'programming_language': batch.programming_language or '—',
+                    'topics_covered': '—',
+                })
+                sno += 1
+                current += timedelta(days=1)
+                continue
+
+            # A regular day only appears if attendance was actually marked that day —
+            # no attendance marked means no class happened, so it's silently skipped
             attendance_on_date = {
                 a.student_id: a.status
-                for a in Attendance.objects.filter(batch_id=batch_id, date=plan.date)
+                for a in Attendance.objects.filter(batch_id=batch_id, date=current)
             }
+            if not attendance_on_date:
+                current += timedelta(days=1)
+                continue
+
+            schedule = schedules.filter(date=current).first()
+            timing = f"{schedule.start_time.strftime('%I:%M %p')} - {schedule.end_time.strftime('%I:%M %p')}" if schedule else "—"
+            topic = lesson_plans.get(current, '—')
 
             for student in students:
                 status = attendance_on_date.get(student.id, 'Not Marked')
                 rows.append({
                     'sno': sno,
-                    'date': str(plan.date),
+                    'date': str(current),
                     'trainer_name': display_name(batch.trainer),
                     'trainee_name': display_name(student),
                     'status': status.capitalize() if status != 'Not Marked' else status,
@@ -182,9 +219,11 @@ class BatchTrainingLogView(APIView):
                     'course_name': batch.course_name or batch.name,
                     'timings': timing,
                     'programming_language': batch.programming_language or '—',
-                    'topics_covered': plan.topic,
+                    'topics_covered': topic,
                 })
                 sno += 1
+
+            current += timedelta(days=1)
 
         return Response(rows)
 
@@ -424,6 +463,11 @@ class AssignmentSubmissionViewSet(viewsets.ModelViewSet):
             qs = qs.filter(assignment__batch_id=batch_id)
         return qs
 
+    def perform_update(self, serializer):
+        if 'verified' in self.request.data and self.request.data['verified']:
+            serializer.save(verified_at=timezone.now())
+        else:
+            serializer.save()
 
 class ReportViewSet(viewsets.ModelViewSet):
     serializer_class = ReportSerializer
@@ -523,25 +567,25 @@ class BatchZoneReportView(APIView):
 
             completed_daily_tasks = AssignmentSubmission.objects.filter(
                 student_id=sid, assignment__batch_id=batch_id, assignment__category='task',
-                submitted_at__date__gte=start, submitted_at__date__lte=end,
+                submitted_at__date__gte=start, submitted_at__date__lte=end, verified=True,
             ).count()
             daily_task_pct = round((completed_daily_tasks / total_daily_tasks) * 100) if total_daily_tasks > 0 else 0
 
             completed_mini_projects = AssignmentSubmission.objects.filter(
                 student_id=sid, assignment__batch_id=batch_id, assignment__category='mini_project',
-                submitted_at__date__gte=start, submitted_at__date__lte=end,
+                submitted_at__date__gte=start, submitted_at__date__lte=end, verified=True,
             ).count()
             mini_project_pct = round((completed_mini_projects / total_mini_projects) * 100) if total_mini_projects > 0 else 0
 
             completed_main_projects = AssignmentSubmission.objects.filter(
                 student_id=sid, assignment__batch_id=batch_id, assignment__category='main_project',
-                submitted_at__date__gte=start, submitted_at__date__lte=end,
+                submitted_at__date__gte=start, submitted_at__date__lte=end, verified=True,
             ).count()
             main_project_pct = round((completed_main_projects / total_main_projects) * 100) if total_main_projects > 0 else 0
 
             completed_seminars = AssignmentSubmission.objects.filter(
                 student_id=sid, assignment__batch_id=batch_id, assignment__category='seminar',
-                submitted_at__date__gte=start, submitted_at__date__lte=end,
+                submitted_at__date__gte=start, submitted_at__date__lte=end, verified=True,
             ).count()
             seminar_pct = round((completed_seminars / total_seminars) * 100) if total_seminars > 0 else 0
 
@@ -607,22 +651,22 @@ class BatchFullZoneReportView(APIView):
             present_days = att_records.filter(status='present').count()
 
             completed_daily_tasks = AssignmentSubmission.objects.filter(
-                student_id=sid, assignment__batch_id=batch_id, assignment__category='task',
+                student_id=sid, assignment__batch_id=batch_id, assignment__category='task', verified=True,
             ).count()
             daily_task_pct = round((completed_daily_tasks / total_daily_tasks) * 100) if total_daily_tasks > 0 else 0
 
             completed_mini_projects = AssignmentSubmission.objects.filter(
-                student_id=sid, assignment__batch_id=batch_id, assignment__category='mini_project',
+                student_id=sid, assignment__batch_id=batch_id, assignment__category='mini_project', verified=True,
             ).count()
             mini_project_pct = round((completed_mini_projects / total_mini_projects) * 100) if total_mini_projects > 0 else 0
 
             completed_main_projects = AssignmentSubmission.objects.filter(
-                student_id=sid, assignment__batch_id=batch_id, assignment__category='main_project',
+                student_id=sid, assignment__batch_id=batch_id, assignment__category='main_project', verified=True,
             ).count()
             main_project_pct = round((completed_main_projects / total_main_projects) * 100) if total_main_projects > 0 else 0
 
             completed_seminars = AssignmentSubmission.objects.filter(
-                student_id=sid, assignment__batch_id=batch_id, assignment__category='seminar',
+                student_id=sid, assignment__batch_id=batch_id, assignment__category='seminar', verified=True,
             ).count()
             seminar_pct = round((completed_seminars / total_seminars) * 100) if total_seminars > 0 else 0
 
@@ -1364,6 +1408,8 @@ class BatchEnrollmentStatusView(APIView):
                 else:
                     break
 
+            total_absent_days = records.filter(status='absent').count()
+
             results.append({
                 'student_id': sid,
                 'name': display_name(student),
@@ -1371,6 +1417,7 @@ class BatchEnrollmentStatusView(APIView):
                 'discontinued_date': enrollment.discontinued_date,
                 'discontinued_reason': enrollment.discontinued_reason,
                 'current_absence_streak': streak,
+                'total_absent_days': total_absent_days,
                 'is_candidate': streak >= self.STREAK_THRESHOLD and enrollment.status == 'active',
             })
         return Response(results)
@@ -1544,3 +1591,16 @@ class EmailZoneReportView(APIView):
             (sent if success else skipped).append(display_name(student))
 
         return Response({"sent_count": len(sent), "skipped_count": len(skipped), "skipped": skipped})    
+    
+
+class HolidayViewSet(viewsets.ModelViewSet):
+    serializer_class = HolidaySerializer
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = Holiday.objects.all()
+
+    def get_queryset(self):
+        batch_id = self.request.query_params.get('batch_id')
+        qs = Holiday.objects.all()
+        if batch_id:
+            qs = qs.filter(batch_id=batch_id)
+        return qs    

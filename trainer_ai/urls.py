@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 from .views import BulkEnrollStudentsView
 from .views import (
-    BatchViewSet, LessonPlanViewSet, DailyScheduleViewSet, AttendanceViewSet,
+    BatchViewSet, LessonPlanViewSet, DailyScheduleViewSet, AttendanceViewSet, HolidayViewSet,
     AssignmentViewSet, MockInterviewQuestionViewSet, AssignmentSubmissionViewSet,
     ReportViewSet, MockInterviewSessionViewSet, MessageViewSet,
     SendMockInviteView, MockEligibilityView, ScheduleIndividualInterviewView,
@@ -25,6 +25,7 @@ router.register('batches', BatchViewSet, basename='batch')
 router.register('lesson-plans', LessonPlanViewSet, basename='lesson-plan')
 router.register('schedules', DailyScheduleViewSet, basename='schedule')
 router.register('attendance', AttendanceViewSet, basename='attendance')
+router.register(r'holidays', HolidayViewSet, basename='holiday')
 router.register('assignments', AssignmentViewSet, basename='assignment')
 router.register('mock-questions', MockInterviewQuestionViewSet, basename='mock-question')
 router.register('submissions', AssignmentSubmissionViewSet, basename='submission')

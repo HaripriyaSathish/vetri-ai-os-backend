@@ -53,7 +53,7 @@ class AssignmentSubmissionMiniSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AssignmentSubmission
-        fields = ["id", "submitted_at", "score", "remarks", "student_note", "links", "attachments", "on_time"]
+        fields = ["id", "submitted_at", "score", "remarks", "student_note", "links", "attachments", "on_time", "verified"]
 
     def get_on_time(self, obj):
         return obj.submitted_at.date() <= obj.assignment.due_date
